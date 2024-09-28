@@ -110,34 +110,6 @@ public:
         });
     }
 
-    int GetDocumentCount() const {
-        return static_cast<int>(documents_.size());
-    }
-
-    tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
-                                                        const int document_id) const {
-        const Query query = ParseQuery(raw_query);
-        vector<string> matched_words;
-        for (const string& word : query.plus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.push_back(word);
-            }
-        }
-        for (const string& word : query.minus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.clear();
-                break;
-            }
-        }
-        return {matched_words, documents_.at(document_id).status};
-    }
-
 private:
     struct DocumentData {
         int rating;
@@ -209,7 +181,10 @@ private:
         return query;
     }
 
-    // Existence required
+    int GetDocumentCount() const {
+        return static_cast<int>(documents_.size());
+    }
+
     double ComputeWordInverseDocumentFreq(const string& word) const {
         return log(GetDocumentCount() * 1.0 / static_cast<double>(word_to_document_freqs_.at(word).size()));
     }

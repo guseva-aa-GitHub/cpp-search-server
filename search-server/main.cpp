@@ -47,13 +47,6 @@ vector<string> SplitIntoWords(const string& text) {
     return words;
 }
 
-void IsNoControlChar(const string & str) {
-    for (const char c : str) {
-        if (c >= ID_BEGIN_CONTROL_CHAR_FOR_ASCII && c <= ID_END_CONTROL_CHAR_FOR_ASCII)
-            throw invalid_argument("IsNoControlChar(), str = "s +str +", not correct."s);
-    }
-}
-
 struct Document {
     Document() = default;
     Document(const int i, const double rev, int r)
@@ -75,7 +68,7 @@ class SearchServer {
 public:
     template <typename StringCollection>
     explicit SearchServer(const StringCollection& stop_words) {
-        for (const string& word : stop_words) {
+        for (const auto& word : stop_words) {
             IsNoControlChar(word);
             if (!word.empty()) {
                 stop_words_.insert(word);
@@ -83,11 +76,8 @@ public:
         }
     }
 
-    explicit SearchServer(const string& text) {
-        IsNoControlChar(text);
-        for (const string& word : SplitIntoWords(text)) {
-            stop_words_.insert(word);
-        }
+    explicit SearchServer(const string& text)
+        : SearchServer(SplitIntoWords(text))  {        
     }
 
     void AddDocument(const int document_id, const string& document, const DocumentStatus status,
@@ -106,7 +96,8 @@ public:
 
     template <typename DocumentPredicate>
     vector<Document> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        auto query = СorrectQuery(raw_query);        
+        const auto query = ParseQuery(raw_query);  
+
         vector<Document> matched_documents = FindAllDocuments(query);
         sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
                 if (abs(lhs.relevance - rhs.relevance) < EPSION) {
@@ -141,7 +132,7 @@ public:
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, const int document_id) const {       
-        auto query = СorrectQuery(raw_query);
+        auto query = ParseQuery(raw_query);
         vector<string> query_word_for_document;
 
         for (const string& word : query.plus_words) {
@@ -179,7 +170,7 @@ public:
             throw out_of_range("SearchServer::GetDocumentId(), "s + to_string(id) + 
             " out of range [0, "s + to_string(document_ids_.size()) +")."s);
         }
-        return document_ids_[id];
+        return document_ids_.at(id);
     }
 
 private:
@@ -202,10 +193,16 @@ private:
             throw invalid_argument("SearchServer::IsIdForAddDocument(), document_id = "s 
                                             +to_string(document_id) +" < 0."s);
         }
-        for (const int id : document_ids_) {
-            if (id == document_id)
+        if (documents_.count(document_id) > 0) {
             throw invalid_argument("SearchServer::IsIdForAddDocument(), document_id = "s 
                                             +to_string(document_id) +", repeating the index."s);
+        }
+    }
+
+    void IsNoControlChar(const string& str) const {
+        for (const auto & c : str) {
+            if (c >= ID_BEGIN_CONTROL_CHAR_FOR_ASCII && c <= ID_END_CONTROL_CHAR_FOR_ASCII)
+                throw invalid_argument("IsNoControlChar(), str = "s +str +", not correct."s);
         }
     }
 
@@ -236,15 +233,16 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
+        IsNoControlChar(text);
         bool is_minus = false;
         // Word shouldn't be empty
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
-        }
-        if (is_minus && (text.empty() || (!text.empty() && text[0] == '-'))) {
-            throw invalid_argument("SearchServer::ParseQueryWord(), text = "s + text + ", not correct."s);
-        }      
+        }        
+        if (text.empty() || text[0] == '-') {
+            throw invalid_argument("SearchServer::ParseQueryWord(), text = "s + text + ", not correct."s);            
+        }        
         return {text, is_minus, IsStopWord(text)};
     }
 
@@ -267,11 +265,6 @@ private:
             }
         }
         return query;
-    }
-
-    Query СorrectQuery(const string &raw_query) const {
-        IsNoControlChar(raw_query);
-        return ParseQuery(raw_query);
     }
 
     double ComputeWordInverseDocumentFreq(const string& word) const {
@@ -323,7 +316,7 @@ int main() {
         search_server.AddDocument(1, "пушистый кот пушистый хвост"s, DocumentStatus::ACTUAL, {7, 2, 7});
         search_server.AddDocument(2, "ухоженный пёс выразительные глаза"s, DocumentStatus::ACTUAL, {5, -12, 2, 1});
         search_server.AddDocument(3, "ухоженный скворец евгений"s, DocumentStatus::BANNED, {9});
-
+       
         cout << "ACTUAL by default:"s << endl;
         for (const Document& document : search_server.FindTopDocuments("пушистый ухоженный кот"s)) {
             PrintDocument(document);
@@ -336,8 +329,7 @@ int main() {
 
         cout << "Even ids:"s << endl;
         for (const Document &document : search_server.FindTopDocuments("пушистый ухоженный кот"s,
-                    [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; }))  
-        {
+                    [](int document_id, DocumentStatus status, int rating) { return document_id % 2 == 0; })) {
             PrintDocument(document);
         }
 

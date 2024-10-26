@@ -18,7 +18,7 @@ set(INC "src")
 set(SOURCE
 		main.cpp  
 		src/request_queue.cpp			src/search_server.cpp        
-        src/string_processing.cpp 		src/document.cpp
+		src/string_processing.cpp 		src/document.cpp
 		src/read_input_functions.cpp)		
 
 add_executable(${PROJECT_NAME} ${SOURCE} )

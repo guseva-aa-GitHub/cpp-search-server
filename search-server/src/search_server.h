@@ -23,6 +23,7 @@ using std::string;
 using std::vector;
 using std::tuple;
 
+constexpr double EPSION = 1e-6;
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 class SearchServer {
@@ -96,7 +97,7 @@ vector<Document> SearchServer::FindTopDocuments(const string& raw_query,
 
     sort(matched_documents.begin(), matched_documents.end(),
          [](const Document &lhs, const Document &rhs) {
-             if (std::abs(lhs.relevance - rhs.relevance) < 1e-6) {
+             if (std::abs(lhs.relevance - rhs.relevance) < EPSION) {
                 return lhs.rating > rhs.rating;
              } else {
                 return lhs.relevance > rhs.relevance;
